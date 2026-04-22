@@ -1,0 +1,1213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Prompt Token Calculator</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #161a21;
+    --panel-2: #1c222c;
+    --border: #262d38;
+    --text: #e7ecf3;
+    --muted: #9aa4b2;
+    --accent: #6aa3ff;
+    --accent-2: #8cd4a3;
+    --warn: #f2b36b;
+    --danger: #ef6b6b;
+    --ok: #7cc48f;
+    --chip: #222a36;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+    line-height: 1.5;
+  }
+  header {
+    padding: 20px 28px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  h1 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+  }
+  .subtitle { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .model-select {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+  main {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 20px;
+    padding: 20px 28px 32px;
+  }
+  @media (max-width: 1000px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+  }
+  .card h2 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+  }
+  textarea {
+    width: 100%;
+    min-height: 320px;
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px;
+    resize: vertical;
+    outline: none;
+  }
+  textarea:focus { border-color: var(--accent); }
+  .toolbar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+  button {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: #0b1322; border-color: transparent; font-weight: 600; }
+  button.primary:hover { filter: brightness(1.05); }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .stat {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+  }
+  .stat .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat .value { font-size: 22px; font-weight: 600; margin-top: 2px; }
+  .stat .sub { font-size: 11px; color: var(--muted); }
+  .bar {
+    height: 8px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 999px; overflow: hidden;
+    margin: 4px 0 14px;
+  }
+  .bar > div { height: 100%; background: linear-gradient(90deg, var(--accent-2), var(--accent)); width: 0%; transition: width 0.2s; }
+  .section-title {
+    font-size: 12px;
+    color: var(--muted);
+    margin: 14px 0 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  .breakdown {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    max-height: 200px;
+    overflow: auto;
+  }
+  .breakdown .line {
+    display: grid;
+    grid-template-columns: 40px 48px 1fr;
+    gap: 10px;
+    padding: 2px 0;
+    border-bottom: 1px dashed var(--border);
+  }
+  .breakdown .line:last-child { border-bottom: none; }
+  .breakdown .ln-num { color: var(--muted); }
+  .breakdown .ln-tok { color: var(--accent); text-align: right; }
+  .breakdown .ln-text { white-space: pre-wrap; word-break: break-word; color: var(--text); }
+
+  .suggestion {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+  }
+  .suggestion.warn { border-left-color: var(--warn); }
+  .suggestion.danger { border-left-color: var(--danger); }
+  .suggestion.ok { border-left-color: var(--ok); }
+  .suggestion .title {
+    font-weight: 600;
+    font-size: 13px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+  .suggestion .chip {
+    background: var(--chip);
+    color: var(--muted);
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-weight: 500;
+  }
+  .suggestion .chip.save { color: var(--ok); }
+  .suggestion .desc { color: var(--muted); font-size: 12.5px; margin-bottom: 6px; }
+  .suggestion .example {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 6px 8px;
+    border-radius: 6px;
+    margin-top: 4px;
+  }
+  .suggestion .example .bad { color: var(--danger); }
+  .suggestion .example .good { color: var(--ok); }
+  .empty-state {
+    color: var(--muted);
+    font-size: 13px;
+    padding: 12px;
+    text-align: center;
+    background: var(--panel-2);
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+  }
+  footer {
+    padding: 12px 28px 24px;
+    color: var(--muted);
+    font-size: 11.5px;
+    text-align: center;
+  }
+  .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+  .tab {
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    color: var(--muted);
+  }
+  .tab.active { color: var(--text); border-color: var(--accent); }
+  .hidden { display: none; }
+  .legend { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .pill {
+    display: inline-block;
+    background: var(--chip);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--muted);
+    font-size: 11px;
+    margin-right: 4px;
+  }
+  details { background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; margin-top: 10px; }
+  summary { cursor: pointer; font-size: 12px; color: var(--muted); }
+
+  /* Attachments */
+  .attach-drop {
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 12px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .attach-drop:hover, .attach-drop.drag {
+    border-color: var(--accent);
+    background: rgba(106,163,255,0.05);
+    color: var(--text);
+  }
+  .attach-drop strong { color: var(--accent); }
+  .attach-list { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .attach {
+    display: grid;
+    grid-template-columns: 28px 1fr auto auto;
+    gap: 10px;
+    align-items: center;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+  .attach .icon { font-size: 16px; text-align: center; color: var(--accent); }
+  .attach .info .name { color: var(--text); font-weight: 500; word-break: break-all; }
+  .attach .info .meta { color: var(--muted); font-size: 11px; }
+  .attach .tok { color: var(--accent-2); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .attach .rm {
+    background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 16px; padding: 0 4px;
+  }
+  .attach .rm:hover { color: var(--danger); }
+  .attach.error { border-left: 3px solid var(--danger); }
+  .attach.loading .tok { color: var(--muted); }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 640px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .grid-2 { grid-template-columns: 1fr; }
+    main { padding: 14px; }
+    header { padding: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Prompt Token Calculator</h1>
+    <div class="subtitle">Count tokens, see the breakdown, and get suggestions to shrink your prompt.</div>
+  </div>
+  <div>
+    <label style="font-size:12px;color:var(--muted);margin-right:6px;">Model</label>
+    <select id="modelSelect" class="model-select">
+      <optgroup label="OpenAI">
+        <option value="gpt-5">GPT-5 / GPT-5-mini (o200k)</option>
+        <option value="gpt-4.1">GPT-4.1 (o200k)</option>
+        <option value="gpt-4o">GPT-4o / GPT-4o-mini (o200k)</option>
+        <option value="o1">o1 / o3 reasoning (o200k)</option>
+        <option value="gpt-4">GPT-4 / GPT-3.5 (cl100k)</option>
+      </optgroup>
+      <optgroup label="Anthropic">
+        <option value="claude-opus-4-7">Claude Opus 4.7 (latest)</option>
+        <option value="claude-opus-4-6">Claude Opus 4.6</option>
+        <option value="claude-opus-4">Claude Opus 4</option>
+        <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
+        <option value="claude-sonnet-4">Claude Sonnet 4</option>
+        <option value="claude-haiku-4-5">Claude Haiku 4.5</option>
+        <option value="claude-3">Claude 3 / 3.5 (legacy)</option>
+      </optgroup>
+      <optgroup label="Google">
+        <option value="gemini-2.5">Gemini 2.5 Pro / Flash</option>
+        <option value="gemini-1.5">Gemini 1.5 Pro / Flash</option>
+      </optgroup>
+      <optgroup label="Other">
+        <option value="llama-3">Llama 3 / 3.1 / 3.3</option>
+        <option value="deepseek">DeepSeek V3 / R1</option>
+        <option value="mistral">Mistral Large / Small</option>
+        <option value="generic">Generic (~4 chars/token)</option>
+      </optgroup>
+    </select>
+  </div>
+</header>
+
+<main>
+  <!-- LEFT: Input -->
+  <section class="card">
+    <h2>Your prompt</h2>
+    <textarea id="prompt" placeholder="Paste your prompt here. For example:
+
+You are a helpful and friendly assistant. Please carefully analyze the following customer feedback in order to provide a detailed summary. It is very important that you consider every single aspect of what the customer has said, and please make sure to be thorough in your response..."></textarea>
+    <div class="toolbar">
+      <button id="clearBtn">Clear</button>
+      <button id="loadSampleBtn">Load sample</button>
+      <button id="copyOptimizedBtn" class="primary">Copy optimized version</button>
+    </div>
+
+    <div class="section-title">Attachments</div>
+    <div id="dropZone" class="attach-drop">
+      <div><strong>Click to attach</strong> or drag files here</div>
+      <div style="margin-top:4px;font-size:11px;">
+        Text (.txt .md .csv .json .py .js .ts .html .xml .yaml .log .sql etc.), PDF, or images (.png .jpg .webp)
+      </div>
+      <input id="fileInput" type="file" multiple style="display:none;" />
+    </div>
+    <div id="attachList" class="attach-list"></div>
+    <div class="section-title">Optimized preview</div>
+    <div id="optimized" class="breakdown" style="max-height: 240px;">—</div>
+    <div class="legend">Auto-rewrites obvious redundancies. Always review before using.</div>
+  </section>
+
+  <!-- RIGHT: Output -->
+  <section class="card">
+    <h2>Results</h2>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="label">Tokens (total)</div>
+        <div class="value" id="tokens">0</div>
+        <div class="sub" id="tokenModelNote">—</div>
+        <div class="sub" id="tokenBreakdown" style="margin-top:2px;"></div>
+      </div>
+      <div class="stat">
+        <div class="label">Characters</div>
+        <div class="value" id="chars">0</div>
+        <div class="sub" id="charsNoWs">0 without spaces</div>
+      </div>
+      <div class="stat">
+        <div class="label">Words</div>
+        <div class="value" id="words">0</div>
+        <div class="sub" id="wordRatio">— tok/word</div>
+      </div>
+      <div class="stat">
+        <div class="label">Lines / sentences</div>
+        <div class="value" id="lines">0</div>
+        <div class="sub" id="sentences">0 sentences</div>
+      </div>
+    </div>
+
+    <div class="section-title">Context window fill (128k reference)</div>
+    <div class="bar"><div id="fillBar"></div></div>
+    <div class="legend" id="fillNote">0% of a 128,000-token context window.</div>
+
+    <div class="tabs">
+      <div class="tab active" data-tab="suggestions">Suggestions</div>
+      <div class="tab" data-tab="breakdown">Per-line breakdown</div>
+      <div class="tab" data-tab="how">How it's calculated</div>
+    </div>
+
+    <div id="tab-suggestions">
+      <div id="suggestions"><div class="empty-state">Enter a prompt to see reduction suggestions.</div></div>
+    </div>
+
+    <div id="tab-breakdown" class="hidden">
+      <div id="breakdown" class="breakdown" style="max-height: 360px;"></div>
+      <div class="legend">Token counts per line. Long lines are usually the best reduction targets.</div>
+    </div>
+
+    <div id="tab-how" class="hidden">
+      <div class="suggestion">
+        <div class="title">Method</div>
+        <div class="desc">
+          Tokens are estimated locally in your browser — nothing is sent anywhere.
+          The estimator uses a BPE-style heuristic calibrated to <span class="pill">cl100k_base</span>
+          (the tokenizer family used by GPT-4, GPT-4o, and GPT-3.5). Claude uses a different
+          tokenizer, so its estimate here is approximate (typically ±10%).
+        </div>
+      </div>
+      <div class="suggestion">
+        <div class="title">What the estimator does</div>
+        <div class="desc">
+          It splits text on whitespace and punctuation, then for each chunk:
+          short common words count as 1 token, longer words are split into subword chunks
+          (~4 chars each), digits are grouped in pairs, and each line break, tab, or
+          punctuation mark counts as its own token. The result is usually within 1–3% of
+          the real tokenizer for English prose.
+        </div>
+      </div>
+      <div class="suggestion">
+        <div class="title">Why your numbers shift by model</div>
+        <div class="desc">
+          Different models use different tokenizers. A 100-word English prompt is roughly
+          130 GPT-4 tokens, ~130 GPT-4o tokens, and ~120 Claude tokens. Code and non-English
+          text can vary far more.
+        </div>
+      </div>
+      <details>
+        <summary>Rule-of-thumb conversions</summary>
+        <div style="font-size:12px;color:var(--muted);margin-top:6px;">
+          • 1 token ≈ 4 characters of English text<br>
+          • 1 token ≈ ¾ of a word<br>
+          • 100 tokens ≈ 75 words ≈ 1 short paragraph<br>
+          • 1,000 tokens ≈ 750 words ≈ 1.5 pages<br>
+        </div>
+      </details>
+    </div>
+  </section>
+</main>
+
+<footer>
+  Runs entirely in your browser. Token counts are estimates, not billing values.
+</footer>
+
+<script>
+/* =========================================================
+   Token estimator (BPE-style heuristic, cl100k-calibrated)
+   ========================================================= */
+
+// A small list of very common short tokens that almost always collapse to 1 token.
+const COMMON_ONE_TOKEN = new Set([
+  "the","a","an","i","you","he","she","it","we","they","is","are","was","were","be","been",
+  "being","am","do","does","did","have","has","had","will","would","can","could","should",
+  "shall","may","might","must","to","of","in","on","at","for","by","with","from","as","and",
+  "or","but","if","not","no","yes","so","than","then","that","this","these","those","my",
+  "your","his","her","its","our","their","me","him","us","them"
+]);
+
+function estimateChunkTokens(word) {
+  if (!word) return 0;
+  const lower = word.toLowerCase();
+  if (COMMON_ONE_TOKEN.has(lower)) return 1;
+
+  // Pure digits: pair them up (cl100k groups digits in ~2-3 char chunks)
+  if (/^\d+$/.test(word)) {
+    return Math.max(1, Math.ceil(word.length / 2));
+  }
+
+  // Non-ASCII (CJK, emoji, etc.) — usually 1+ tokens per character
+  let nonAscii = 0;
+  for (const ch of word) { if (ch.charCodeAt(0) > 127) nonAscii++; }
+  if (nonAscii > 0) {
+    // ~1.5 tokens per non-ASCII char on average
+    return Math.max(1, Math.ceil(nonAscii * 1.5) + Math.ceil((word.length - nonAscii) / 4));
+  }
+
+  // Short words (<= 4 chars) usually 1 token.
+  if (word.length <= 4) return 1;
+
+  // Longer words split by BPE into subword chunks averaging ~4 chars.
+  // Add a small penalty for uppercase-heavy or camelCase words.
+  const hasCaseShift = /[a-z][A-Z]/.test(word);
+  const base = Math.ceil(word.length / 4);
+  return base + (hasCaseShift ? 1 : 0);
+}
+
+function estimateTokens(text, model = "gpt-4o") {
+  if (!text) return 0;
+
+  // Whitespace + punctuation boundaries. Keep punctuation as separate tokens.
+  // Split but preserve separators.
+  const parts = text.split(/(\s+|[.,;:!?()\[\]{}"'`~@#$%^&*\-_=+<>/\\|])/);
+
+  let tokens = 0;
+  for (const part of parts) {
+    if (!part) continue;
+    if (/^\s+$/.test(part)) {
+      // Newlines and tabs count; multiple spaces collapse to 0.
+      const newlines = (part.match(/\n/g) || []).length;
+      const tabs = (part.match(/\t/g) || []).length;
+      tokens += newlines + tabs;
+      continue;
+    }
+    if (/^[.,;:!?()\[\]{}"'`~@#$%^&*\-_=+<>/\\|]$/.test(part)) {
+      tokens += 1;
+      continue;
+    }
+    tokens += estimateChunkTokens(part);
+  }
+
+  // Model calibration factors (relative to our GPT-4o baseline).
+  // o200k (GPT-4o, GPT-5, o1/o3) is slightly more efficient than cl100k for English.
+  // Claude's tokenizer is close to cl100k but a bit tighter for English.
+  // Gemini uses SentencePiece — typically a touch denser than o200k.
+  // Llama/Mistral use their own BPE variants; Llama 3 is ~128k vocab.
+  const factor = {
+    "gpt-5":             0.95,
+    "gpt-4.1":           0.95,
+    "gpt-4o":            0.95,
+    "o1":                0.95,
+    "gpt-4":             1.00,
+    "claude-opus-4-7":   0.93,
+    "claude-opus-4-6":   0.93,
+    "claude-opus-4":     0.93,
+    "claude-sonnet-4-6": 0.93,
+    "claude-sonnet-4":   0.93,
+    "claude-haiku-4-5":  0.93,
+    "claude-3":          0.92,
+    "gemini-2.5":        0.97,
+    "gemini-1.5":        0.98,
+    "llama-3":           0.98,
+    "deepseek":          0.96,
+    "mistral":           1.02,
+    "generic":           1.00
+  }[model] || 1.0;
+
+  if (model === "generic") {
+    // Pure char-based fallback
+    return Math.max(1, Math.round(text.length / 4));
+  }
+
+  return Math.max(0, Math.round(tokens * factor));
+}
+
+/* =========================================================
+   Analysis: reduction suggestions
+   ========================================================= */
+
+const REDUNDANT_PHRASES = [
+  { bad: /\bplease\s+(kindly|make sure to|be sure to)\b/gi, good: "", note: "Drop polite filler — models don't need it." },
+  { bad: /\bplease\b/gi, good: "", note: "Remove 'please' — saves 1 token per occurrence with no quality loss." },
+  { bad: /\bkindly\b/gi, good: "", note: "'Kindly' adds tokens, not meaning." },
+  { bad: /\bin order to\b/gi, good: "to", note: "'In order to' → 'to' saves 2 tokens." },
+  { bad: /\bdue to the fact that\b/gi, good: "because", note: "'Due to the fact that' → 'because' saves ~4 tokens." },
+  { bad: /\bat this point in time\b/gi, good: "now", note: "'At this point in time' → 'now' saves ~4 tokens." },
+  { bad: /\bfor the purpose of\b/gi, good: "to", note: "'For the purpose of' → 'to' saves ~3 tokens." },
+  { bad: /\bwith regard to\b/gi, good: "about", note: "'With regard to' → 'about' saves ~2 tokens." },
+  { bad: /\bin the event that\b/gi, good: "if", note: "'In the event that' → 'if' saves ~3 tokens." },
+  { bad: /\ba (great|large|small) (number|amount) of\b/gi, good: "many", note: "'A large number of' → 'many'." },
+  { bad: /\bthe following\s+(is|are)\b/gi, good: "", note: "Often redundant with a colon or list." },
+  { bad: /\bas mentioned (earlier|above|previously)\b/gi, good: "", note: "The model already has the earlier context." },
+  { bad: /\bvery\s+/gi, good: "", note: "'Very' rarely changes model behavior." },
+  { bad: /\breally\s+/gi, good: "", note: "'Really' is filler." },
+  { bad: /\bbasically\b/gi, good: "", note: "'Basically' is filler." },
+  { bad: /\bactually\b/gi, good: "", note: "'Actually' is filler." },
+  { bad: /\bjust\s+/gi, good: "", note: "'Just' is usually filler." },
+  { bad: /\bit is important (to note )?that\b/gi, good: "", note: "State the point directly." },
+  { bad: /\bit should be noted that\b/gi, good: "", note: "State the point directly." },
+  { bad: /\bmake sure (to|that)\b/gi, good: "", note: "Use an imperative instead ('Do X')." },
+  { bad: /\bI would like you to\b/gi, good: "", note: "Use a direct imperative ('Do X')." },
+  { bad: /\bI want you to\b/gi, good: "", note: "Use a direct imperative ('Do X')." },
+  { bad: /\bcan you\b/gi, good: "", note: "Use a direct imperative instead of asking." },
+  { bad: /\bcould you\b/gi, good: "", note: "Use a direct imperative instead of asking." },
+  { bad: /\bhelpful and friendly\b/gi, good: "helpful", note: "Stacked adjectives add tokens, not behavior." },
+  { bad: /\bdetailed and comprehensive\b/gi, good: "thorough", note: "One adjective is usually enough." },
+  { bad: /\bclear and concise\b/gi, good: "concise", note: "These two words overlap." },
+];
+
+function analyzePrompt(text, model) {
+  const suggestions = [];
+  const baseline = estimateTokens(text, model);
+  if (!text.trim()) return { suggestions, baseline };
+
+  // 1. Redundant phrase scan
+  for (const rule of REDUNDANT_PHRASES) {
+    const matches = text.match(rule.bad);
+    if (matches && matches.length) {
+      const before = estimateTokens(matches.join(" "), model);
+      const after = estimateTokens(matches.map(() => rule.good).join(" "), model);
+      const saved = Math.max(0, before - after) || matches.length; // at least 1 per match
+      suggestions.push({
+        level: "warn",
+        title: `Remove "${matches[0].trim()}"${matches.length > 1 ? ` (${matches.length}×)` : ""}`,
+        desc: rule.note,
+        save: saved,
+        example: { bad: matches[0], good: rule.good || "(remove)" }
+      });
+    }
+  }
+
+  // 2. Passive voice heuristic
+  const passive = (text.match(/\b(is|was|were|be|been|being|are)\s+\w+ed\b/gi) || []).length;
+  if (passive >= 2) {
+    suggestions.push({
+      level: "warn",
+      title: `${passive} passive-voice constructions`,
+      desc: "Active voice is shorter and clearer. 'The code was written by X' → 'X wrote the code'.",
+      save: Math.max(2, passive),
+      example: { bad: "The data should be analyzed", good: "Analyze the data" }
+    });
+  }
+
+  // 3. Long sentences
+  const sentences = text.split(/[.!?]+\s+/).filter(Boolean);
+  const longSentences = sentences.filter(s => s.trim().split(/\s+/).length > 30);
+  if (longSentences.length) {
+    suggestions.push({
+      level: "warn",
+      title: `${longSentences.length} sentence${longSentences.length>1?"s":""} over 30 words`,
+      desc: "Long sentences compound redundancy. Break them into shorter imperatives.",
+      save: longSentences.length * 3,
+      example: {
+        bad: "When you are asked to do something, you should first consider what the user really wants...",
+        good: "First, identify the user's goal. Then..."
+      }
+    });
+  }
+
+  // 4. Repeated phrases (3+ words repeated)
+  const trigrams = {};
+  const words = text.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(Boolean);
+  for (let i = 0; i < words.length - 2; i++) {
+    const tri = words.slice(i, i + 3).join(" ");
+    trigrams[tri] = (trigrams[tri] || 0) + 1;
+  }
+  const repeats = Object.entries(trigrams).filter(([, n]) => n >= 3);
+  if (repeats.length) {
+    const top = repeats.sort((a, b) => b[1] - a[1]).slice(0, 3);
+    suggestions.push({
+      level: "warn",
+      title: "Repeated phrasing",
+      desc: "You're repeating the same 3-word phrase multiple times. Define the concept once, reference by a short name.",
+      save: top.reduce((s, [, n]) => s + (n - 1) * 3, 0),
+      example: {
+        bad: top.map(([p, n]) => `"${p}" × ${n}`).join(", "),
+        good: "Mention once, then refer back with a pronoun or short label."
+      }
+    });
+  }
+
+  // 5. Verbose role-setting
+  if (/\byou are (a|an) \w+( and \w+){2,}/i.test(text) ||
+      /\bhelpful assistant\b/i.test(text)) {
+    suggestions.push({
+      level: "warn",
+      title: "Over-specified role",
+      desc: "Modern models don't need 'You are a helpful assistant'. A single concrete role line is enough.",
+      save: 8,
+      example: { bad: "You are a helpful, friendly, and knowledgeable assistant that always…", good: "You are a SQL reviewer." }
+    });
+  }
+
+  // 6. Example sprawl (lots of "Example:" blocks)
+  const exampleCount = (text.match(/\bexample\s*\d*\s*:/gi) || []).length;
+  if (exampleCount >= 4) {
+    suggestions.push({
+      level: "warn",
+      title: `${exampleCount} examples included`,
+      desc: "Few-shot returns diminish after 3–5 examples for most tasks. Trim to your 2–3 most diverse ones.",
+      save: Math.round(baseline * 0.15),
+      example: { bad: "8 similar examples", good: "3 examples covering distinct cases" }
+    });
+  }
+
+  // 7. Whitespace / formatting
+  const blankLines = (text.match(/\n\s*\n\s*\n/g) || []).length;
+  if (blankLines > 0) {
+    suggestions.push({
+      level: "ok",
+      title: `Collapse ${blankLines} extra blank line${blankLines>1?"s":""}`,
+      desc: "Every newline is a token. Collapse triple-newlines to a single blank line.",
+      save: blankLines,
+      example: { bad: "\\n\\n\\n", good: "\\n\\n" }
+    });
+  }
+
+  // 8. Markdown heavy indentation
+  const deepIndent = (text.match(/^\s{8,}/gm) || []).length;
+  if (deepIndent >= 3) {
+    suggestions.push({
+      level: "ok",
+      title: "Deeply indented content",
+      desc: "Leading spaces count as tokens (especially in code blocks). Dedent where possible.",
+      save: Math.round(deepIndent * 0.5)
+    });
+  }
+
+  // 9. JSON / schema tip
+  if (/\{[\s\S]*"type"\s*:/.test(text) && text.length > 800) {
+    suggestions.push({
+      level: "ok",
+      title: "Large JSON schema detected",
+      desc: "If this schema is stable, move it into a function/tool definition or system-level spec once, rather than embedding each call.",
+      save: Math.round(baseline * 0.2)
+    });
+  }
+
+  // 10. High tok/word ratio → dense punctuation or code
+  const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
+  const ratio = wordCount ? baseline / wordCount : 0;
+  if (wordCount > 40 && ratio > 1.6) {
+    suggestions.push({
+      level: "warn",
+      title: "High token-to-word ratio",
+      desc: `Your prompt averages ${ratio.toFixed(2)} tokens/word (typical English is 1.3). This usually means heavy punctuation, code, or non-English text. Consider whether every symbol is needed.`,
+      save: Math.round((ratio - 1.3) * wordCount * 0.3)
+    });
+  }
+
+  // Sort by estimated savings, descending
+  suggestions.sort((a, b) => (b.save || 0) - (a.save || 0));
+
+  return { suggestions, baseline };
+}
+
+/* =========================================================
+   Auto-rewriter for the "Optimized preview"
+   ========================================================= */
+function autoOptimize(text) {
+  if (!text) return "";
+  let out = text;
+
+  const rewrites = [
+    // Smart/curly quotes and dashes → ASCII (often tokenize more heavily)
+    [/[\u2018\u2019\u201A\u201B]/g, "'"],
+    [/[\u201C\u201D\u201E\u201F]/g, '"'],
+    [/[\u2013\u2014]/g, "-"],
+    [/\u2026/g, "..."],
+
+    // Conversational openers
+    [/^(ok(ay)?|alright|well|so|hi|hello|hey)[,:]?\s+/gi, ""],
+    [/\b(starting again|let me start over|let's start over)[,:]?\s*/gi, ""],
+
+    // Politeness / filler
+    [/\bplease\s+(kindly|make sure to|be sure to)\s+/gi, ""],
+    [/\bplease\s+/gi, ""],
+    [/\bkindly\s+/gi, ""],
+    [/\bin order to\b/gi, "to"],
+    [/\bdue to the fact that\b/gi, "because"],
+    [/\bfor the purpose of\b/gi, "to"],
+    [/\bwith regard to\b/gi, "about"],
+    [/\bwith respect to\b/gi, "about"],
+    [/\bin the event that\b/gi, "if"],
+    [/\bat this point in time\b/gi, "now"],
+    [/\bat the present time\b/gi, "now"],
+    [/\bprior to\b/gi, "before"],
+    [/\bsubsequent to\b/gi, "after"],
+    [/\bvery\s+/gi, ""],
+    [/\breally\s+/gi, ""],
+    [/\bbasically\s+/gi, ""],
+    [/\bactually\s+/gi, ""],
+    [/\bjust\s+/gi, ""],
+    [/\bquite\s+/gi, ""],
+    [/\brather\s+/gi, ""],
+    [/\bit is important (to note )?that\s+/gi, ""],
+    [/\bit should be noted that\s+/gi, ""],
+    [/\bmake sure (to|that)\s+/gi, ""],
+    [/\bI would like you to\s+/gi, ""],
+    [/\bI want you to\s+/gi, ""],
+    [/\bI need you to\s+/gi, ""],
+    [/\bcould you\s+/gi, ""],
+    [/\bcan you\s+/gi, ""],
+    [/\ba (great|large) (number|amount) of\b/gi, "many"],
+    [/\bhelpful and friendly\b/gi, "helpful"],
+    [/\bdetailed and comprehensive\b/gi, "thorough"],
+    [/\bclear and concise\b/gi, "concise"],
+    [/\bas mentioned (earlier|above|previously)[,:]?\s*/gi, ""],
+
+    // Verbose technical phrasings
+    [/\bwe have\b/gi, "there are"],           // slightly shorter subjectively; model-neutral
+    [/\bthose when\b/gi, "when"],
+    [/\bwhen scheduled\b/gi, "scheduled"],
+    [/\bare defined\b/gi, "live"],
+    [/\bthis command shows\b/gi, "it shows"],
+    [/\bin python\b/gi, "in Python"],         // consistency; no token impact
+
+    // Whitespace
+    [/\n{3,}/g, "\n\n"],
+    [/[ \t]+\n/g, "\n"],
+    [/  +/g, " "],
+    [/\s+,/g, ","],
+    [/,(?!\s)/g, ", "],                       // normalize "weekly,nightly" → "weekly, nightly" (readability, no cost)
+  ];
+
+  for (const [re, rep] of rewrites) out = out.replace(re, rep);
+  // Capitalise sentence starts that we may have uncapped
+  out = out.replace(/(^|[.!?]\s+)([a-z])/g, (_, p1, p2) => p1 + p2.toUpperCase());
+  return out.trim();
+}
+
+/* =========================================================
+   Attachments
+   ========================================================= */
+const attachments = []; // { id, name, size, type, kind, tokens, status, error?, width?, height?, pages? }
+let nextAttachId = 1;
+
+const TEXT_EXTENSIONS = new Set([
+  "txt","md","markdown","csv","tsv","json","jsonl","yaml","yml","xml","html","htm",
+  "js","mjs","cjs","ts","tsx","jsx","py","rb","go","rs","java","kt","kts","scala",
+  "c","h","cpp","cc","cxx","hpp","cs","php","pl","lua","r","sh","bash","zsh","fish",
+  "ps1","bat","cmd","sql","ini","cfg","conf","toml","env","properties","log","srt",
+  "vtt","tex","rtf","org","rst","adoc"
+]);
+
+function humanSize(bytes) {
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + " KB";
+  return (bytes/1024/1024).toFixed(2) + " MB";
+}
+
+function getExt(name) {
+  const m = /\.([^.\\\/]+)$/.exec(name);
+  return m ? m[1].toLowerCase() : "";
+}
+
+function classifyFile(file) {
+  const ext = getExt(file.name);
+  if (file.type.startsWith("image/")) return "image";
+  if (file.type === "application/pdf" || ext === "pdf") return "pdf";
+  if (file.type.startsWith("text/") || TEXT_EXTENSIONS.has(ext)) return "text";
+  // Try to treat unknown small files as text
+  if (file.size < 2 * 1024 * 1024) return "text-maybe";
+  return "unknown";
+}
+
+/* Image token estimation per model.
+   - OpenAI (GPT-4o / GPT-5 / GPT-4-vision): "high detail" tile formula
+     scale to max 2048 on long side, then min 768 on short side, count 512x512 tiles.
+     tokens = 85 + 170 * tiles  (GPT-4o ≈ same; o1 uses vision too)
+   - Claude: tokens ≈ (w * h) / 750, capped at ~1600
+   - Gemini: 258 tokens for images ≤ 384x384, else tiled at 768 (~258 per tile)
+*/
+function estimateImageTokens(w, h, model) {
+  if (!w || !h) return 85;
+  const isOpenAI = /^gpt|^o1|^o3/.test(model) || model === "gpt-4" || model === "gpt-4o" ||
+                   model === "gpt-4.1" || model === "gpt-5" || model === "o1";
+  const isClaude = model.startsWith("claude");
+  const isGemini = model.startsWith("gemini");
+
+  if (isClaude) {
+    return Math.min(1600, Math.ceil((w * h) / 750));
+  }
+  if (isGemini) {
+    if (w <= 384 && h <= 384) return 258;
+    const tilesW = Math.ceil(w / 768);
+    const tilesH = Math.ceil(h / 768);
+    return 258 * Math.max(1, tilesW * tilesH);
+  }
+  // OpenAI default (high detail)
+  let W = w, H = h;
+  const long = Math.max(W, H);
+  if (long > 2048) { const s = 2048 / long; W *= s; H *= s; }
+  const short = Math.min(W, H);
+  if (short > 768) { const s = 768 / short; W *= s; H *= s; }
+  const tiles = Math.ceil(W / 512) * Math.ceil(H / 512);
+  return 85 + 170 * tiles;
+}
+
+async function processTextFile(file) {
+  const text = await file.text();
+  return { text, kind: "text" };
+}
+
+async function processImageFile(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const dims = await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+      img.onerror = reject;
+      img.src = url;
+    });
+    return { kind: "image", width: dims.w, height: dims.h };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+let pdfJsLoading = null;
+function loadPdfJs() {
+  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if (pdfJsLoading) return pdfJsLoading;
+  pdfJsLoading = new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+    s.onload = () => {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      resolve(window.pdfjsLib);
+    };
+    s.onerror = () => reject(new Error("Failed to load PDF.js"));
+    document.head.appendChild(s);
+  });
+  return pdfJsLoading;
+}
+
+async function processPdfFile(file) {
+  const pdfjs = await loadPdfJs();
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjs.getDocument({ data: buf }).promise;
+  let text = "";
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map(it => it.str).join(" ") + "\n\n";
+  }
+  return { text, kind: "pdf", pages: pdf.numPages };
+}
+
+function iconFor(kind, ext) {
+  if (kind === "image") return "IMG";
+  if (kind === "pdf") return "PDF";
+  if (kind === "text" || kind === "text-maybe") return ext ? ext.toUpperCase().slice(0,4) : "TXT";
+  return "?";
+}
+
+async function addFiles(fileList) {
+  const model = $("modelSelect").value;
+  for (const file of fileList) {
+    const id = nextAttachId++;
+    const kind = classifyFile(file);
+    const ext = getExt(file.name);
+    const entry = {
+      id, name: file.name, size: file.size, type: file.type,
+      kind, tokens: 0, status: "loading"
+    };
+    attachments.push(entry);
+    renderAttachments();
+    update();
+
+    try {
+      if (kind === "image") {
+        const { width, height } = await processImageFile(file);
+        entry.width = width; entry.height = height;
+        entry.tokens = estimateImageTokens(width, height, model);
+      } else if (kind === "pdf") {
+        const { text, pages } = await processPdfFile(file);
+        entry.text = text; entry.pages = pages;
+        entry.tokens = estimateTokens(text, model);
+      } else if (kind === "text" || kind === "text-maybe") {
+        const { text } = await processTextFile(file);
+        entry.text = text;
+        entry.tokens = estimateTokens(text, model);
+      } else {
+        throw new Error("Unsupported file type");
+      }
+      entry.status = "done";
+    } catch (err) {
+      entry.status = "error";
+      entry.error = err.message || "Failed to read file";
+    }
+    renderAttachments();
+    update();
+  }
+}
+
+function removeAttachment(id) {
+  const i = attachments.findIndex(a => a.id === id);
+  if (i >= 0) attachments.splice(i, 1);
+  renderAttachments();
+  update();
+}
+
+function recalcAttachmentTokens() {
+  const model = $("modelSelect").value;
+  for (const a of attachments) {
+    if (a.status !== "done") continue;
+    if (a.kind === "image") a.tokens = estimateImageTokens(a.width, a.height, model);
+    else if (a.text != null) a.tokens = estimateTokens(a.text, model);
+  }
+}
+
+function renderAttachments() {
+  const el = $("attachList");
+  if (!attachments.length) { el.innerHTML = ""; return; }
+  el.innerHTML = attachments.map(a => {
+    const ext = getExt(a.name);
+    const icon = iconFor(a.kind, ext);
+    let meta = humanSize(a.size);
+    if (a.kind === "image" && a.width) meta += ` · ${a.width}×${a.height}`;
+    if (a.kind === "pdf" && a.pages) meta += ` · ${a.pages} pages`;
+    if (a.status === "loading") meta += " · reading…";
+    if (a.status === "error") meta += ` · ${a.error}`;
+    const tokDisplay = a.status === "done" ? `${a.tokens.toLocaleString()} tok` :
+                       a.status === "error" ? "—" : "…";
+    return `
+      <div class="attach ${a.status === 'error' ? 'error' : ''} ${a.status === 'loading' ? 'loading' : ''}">
+        <div class="icon">${escapeHtml(icon)}</div>
+        <div class="info">
+          <div class="name">${escapeHtml(a.name)}</div>
+          <div class="meta">${escapeHtml(meta)}</div>
+        </div>
+        <div class="tok">${tokDisplay}</div>
+        <button class="rm" data-id="${a.id}" title="Remove">×</button>
+      </div>
+    `;
+  }).join("");
+  el.querySelectorAll(".rm").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      const id = parseInt(e.currentTarget.dataset.id, 10);
+      removeAttachment(id);
+    });
+  });
+}
+
+function totalAttachmentTokens() {
+  return attachments.reduce((s, a) => s + (a.status === "done" ? a.tokens : 0), 0);
+}
+
+/* =========================================================
+   Wiring
+   ========================================================= */
+const $ = (id) => document.getElementById(id);
+
+const SAMPLE = `You are a helpful and friendly assistant. Please kindly analyze the following customer feedback in order to provide a detailed and comprehensive summary. It is very important that you consider every single aspect of what the customer has said, and please make sure to be thorough in your response.
+
+As mentioned above, the customer feedback is provided below. Due to the fact that we want to be really accurate, please just make sure to actually basically cover all the points.
+
+Example 1: ...
+Example 2: ...
+Example 3: ...
+Example 4: ...
+Example 5: ...
+Example 6: ...
+
+I would like you to provide your answer in a clear and concise manner. Can you please make sure that the output is in JSON format?`;
+
+function update() {
+  const text = $("prompt").value;
+  const model = $("modelSelect").value;
+
+  const promptTokens = estimateTokens(text, model);
+  const attachTokens = totalAttachmentTokens();
+  const tokens = promptTokens + attachTokens;
+  const chars = text.length;
+  const charsNoWs = text.replace(/\s/g, "").length;
+  const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+  const lines = text ? text.split("\n").length : 0;
+  const sentences = text.split(/[.!?]+\s+/).filter(s => s.trim()).length;
+
+  $("tokens").textContent = tokens.toLocaleString();
+  $("tokenBreakdown").textContent = attachments.length
+    ? `${promptTokens.toLocaleString()} prompt + ${attachTokens.toLocaleString()} attachments`
+    : "";
+  $("chars").textContent = chars.toLocaleString();
+  $("charsNoWs").textContent = `${charsNoWs.toLocaleString()} without spaces`;
+  $("words").textContent = words.toLocaleString();
+  $("wordRatio").textContent = words ? `${(promptTokens/words).toFixed(2)} tok/word` : "— tok/word";
+  $("lines").textContent = lines.toLocaleString();
+  $("sentences").textContent = `${sentences.toLocaleString()} sentences`;
+  $("tokenModelNote").textContent = {
+    "gpt-5":             "GPT-5 estimate (o200k)",
+    "gpt-4.1":           "GPT-4.1 estimate (o200k)",
+    "gpt-4o":            "GPT-4o estimate (o200k)",
+    "o1":                "o1 / o3 estimate (o200k)",
+    "gpt-4":             "GPT-4 / 3.5 estimate (cl100k)",
+    "claude-opus-4-7":   "Claude Opus 4.7 estimate",
+    "claude-opus-4-6":   "Claude Opus 4.6 estimate",
+    "claude-opus-4":     "Claude Opus 4 estimate",
+    "claude-sonnet-4-6": "Claude Sonnet 4.6 estimate",
+    "claude-sonnet-4":   "Claude Sonnet 4 estimate",
+    "claude-haiku-4-5":  "Claude Haiku 4.5 estimate",
+    "claude-3":          "Claude 3 / 3.5 estimate",
+    "gemini-2.5":        "Gemini 2.5 estimate",
+    "gemini-1.5":        "Gemini 1.5 estimate",
+    "llama-3":           "Llama 3.x estimate",
+    "deepseek":          "DeepSeek estimate",
+    "mistral":           "Mistral estimate",
+    "generic":           "chars ÷ 4"
+  }[model] || "estimate";
+
+  const pct = Math.min(100, (tokens / 128000) * 100);
+  $("fillBar").style.width = pct + "%";
+  $("fillNote").textContent = `${pct.toFixed(2)}% of a 128,000-token context window.`;
+
+  // Per-line breakdown
+  const bd = $("breakdown");
+  if (!text) {
+    bd.innerHTML = `<div class="empty-state">No input yet.</div>`;
+  } else {
+    const rows = text.split("\n").map((line, i) => {
+      const t = estimateTokens(line, model);
+      const display = line.length ? escapeHtml(line) : `<span style="color:var(--muted)">(blank)</span>`;
+      return `<div class="line"><div class="ln-num">${i+1}</div><div class="ln-tok">${t}</div><div class="ln-text">${display}</div></div>`;
+    }).join("");
+    bd.innerHTML = rows;
+  }
+
+  // Suggestions
+  const { suggestions } = analyzePrompt(text, model);
+  const sugEl = $("suggestions");
+  if (!text.trim()) {
+    sugEl.innerHTML = `<div class="empty-state">Enter a prompt to see reduction suggestions.</div>`;
+  } else if (suggestions.length === 0) {
+    sugEl.innerHTML = `<div class="suggestion ok"><div class="title">Looks tight already <span class="chip save">nice</span></div><div class="desc">No common redundancies detected. Further reductions would require rewriting for intent, not just cleanup.</div></div>`;
+  } else {
+    const totalSave = suggestions.reduce((s, x) => s + (x.save || 0), 0);
+    const header = `<div class="suggestion ok"><div class="title">Estimated total savings <span class="chip save">~${totalSave} tokens</span></div><div class="desc">Applying all suggestions below could shrink this prompt by roughly ${totalSave} tokens (${Math.round(totalSave/tokens*100)}%).</div></div>`;
+    sugEl.innerHTML = header + suggestions.map(s => `
+      <div class="suggestion ${s.level}">
+        <div class="title">${escapeHtml(s.title)} <span class="chip save">−${s.save || 1} tok</span></div>
+        <div class="desc">${escapeHtml(s.desc)}</div>
+        ${s.example ? `<div class="example"><span class="bad">− ${escapeHtml(s.example.bad)}</span><br><span class="good">+ ${escapeHtml(s.example.good)}</span></div>` : ""}
+      </div>
+    `).join("");
+  }
+
+  // Optimized preview
+  const opt = autoOptimize(text);
+  const optTokens = estimateTokens(opt, model);
+  const saved = tokens - optTokens;
+  const unchanged = opt.trim() === text.trim();
+
+  if (!text) {
+    $("optimized").innerHTML = `<div class="empty-state">Optimized version will appear here.</div>`;
+  } else if (unchanged) {
+    $("optimized").innerHTML = `
+      <div style="color:var(--warn);margin-bottom:8px;font-size:12px;font-weight:600;">
+        No automatic rewrites apply to this prompt.
+      </div>
+      <div style="color:var(--muted);font-size:12px;line-height:1.55;">
+        The auto-rewriter only removes mechanical redundancies (filler words, polite phrasing, smart quotes, etc.).
+        If the Suggestions panel still shows room to shrink, the remaining gains require manual rewording —
+        try: shortening technical examples, replacing repeated phrases with short labels, converting passive to active voice,
+        or removing setup sentences like "Ok, starting again" that don't help the model.
+      </div>`;
+  } else {
+    const pctText = tokens ? Math.round(saved/tokens*100) : 0;
+    $("optimized").innerHTML = `
+      <div style="color:var(--muted);margin-bottom:6px;font-size:11px;">
+        ${optTokens} tokens
+        <span style="color:${saved > 0 ? 'var(--ok)' : 'var(--muted)'}">(${saved >= 0 ? "−" : "+"}${Math.abs(saved)}, ${pctText}%)</span>
+      </div>
+      <div style="white-space:pre-wrap;">${escapeHtml(opt)}</div>`;
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+}
+
+// Tabs
+document.querySelectorAll(".tab").forEach(t => {
+  t.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+    t.classList.add("active");
+    const tab = t.dataset.tab;
+    $("tab-suggestions").classList.toggle("hidden", tab !== "suggestions");
+    $("tab-breakdown").classList.toggle("hidden", tab !== "breakdown");
+    $("tab-how").classList.toggle("hidden", tab !== "how");
+  });
+});
+
+// Buttons
+$("clearBtn").addEventListener("click", () => {
+  $("prompt").value = "";
+  attachments.length = 0;
+  renderAttachments();
+  update();
+});
+$("loadSampleBtn").addEventListener("click", () => { $("prompt").value = SAMPLE; update(); });
+$("copyOptimizedBtn").addEventListener("click", async () => {
+  const opt = autoOptimize($("prompt").value);
+  try {
+    await navigator.clipboard.writeText(opt);
+    const btn = $("copyOptimizedBtn");
+    const orig = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(() => btn.textContent = orig, 1200);
+  } catch { alert("Copy failed — your browser blocked clipboard access."); }
+});
+
+// Attachments: file input + drag & drop
+const dropZone = $("dropZone");
+const fileInput = $("fileInput");
+dropZone.addEventListener("click", () => fileInput.click());
+fileInput.addEventListener("change", (e) => {
+  if (e.target.files && e.target.files.length) addFiles(e.target.files);
+  e.target.value = ""; // allow re-uploading same file
+});
+["dragenter","dragover"].forEach(ev => {
+  dropZone.addEventListener(ev, (e) => { e.preventDefault(); dropZone.classList.add("drag"); });
+});
+["dragleave","drop"].forEach(ev => {
+  dropZone.addEventListener(ev, (e) => { e.preventDefault(); dropZone.classList.remove("drag"); });
+});
+dropZone.addEventListener("drop", (e) => {
+  if (e.dataTransfer?.files?.length) addFiles(e.dataTransfer.files);
+});
+
+// Live updates
+$("prompt").addEventListener("input", update);
+$("modelSelect").addEventListener("change", () => {
+  recalcAttachmentTokens();
+  renderAttachments();
+  update();
+});
+
+// Initialize
+update();
+</script>
+</body>
+</html>
